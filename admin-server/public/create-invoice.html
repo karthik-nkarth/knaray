@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/admin/css/admin-ui.css">
+    <title>Create Invoice</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 6px;
+            margin: 4px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        button {
+            padding: 8px 14px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .total-box {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: right;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .invoice-container {
+            position: relative;
+        }
+
+        /* Home button inside form */
+        .close-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: none;
+            color: #fff;
+            font-size: 17px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .close-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="invoice-container">
+        <button class="close-btn" onclick="goHome()" title="Back to Dashboard">❌</button>
+
+        <h1>Create Invoice</h1>
+
+        <h3>From</h3>
+        <select id="fromEntity"></select>
+
+        <h3>Client Details</h3>
+        <input type="text" id="clientName" placeholder="Client Name" required>
+        <textarea id="clientAddress" placeholder="Client Address"></textarea>
+
+        <h3>Invoice Settings</h3>
+
+        <select id="currency"></select>
+
+        <label>
+            <input type="checkbox" id="gst"> Apply GST (18%)
+        </label>
+
+        <h3>Services</h3>
+
+        <table id="items">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <button onclick="addRow()">+ Add Service</button>
+
+        <div class="total-box">
+            <p>Subtotal: <span id="subtotal">0.00</span></p>
+            <p id="gstRow" style="display:none;">GST (18%): <span id="gstAmount">0.00</span></p>
+            <p><strong>Total: <span id="total">0.00</span></strong></p>
+        </div>
+
+        <button onclick="submitInvoice()">Generate Invoice</button>
+
+        <script>
+
+            function showModal(title, message) {
+                document.getElementById("modalTitle").innerText = title;
+                document.getElementById("modalMessage").innerText = message;
+                document.getElementById("modal").style.display = "flex";
+            }
+
+            function goHome() {
+                window.location.href = "/admin/dashboard.html";
+            }
+
+            function closeModal() {
+                document.getElementById("modal").style.display = "none";
+            }
+            const tbody = document.querySelector("#items tbody");
+
+            /* ---------------- SERVICES ---------------- */
+
+            function addRow() {
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+        <td><input type="text" placeholder="Service name"></td>
+        <td><input type="number" value="1" min="1" oninput="calc()"></td>
+        <td><input type="number" value="0" min="0" oninput="calc()"></td>
+        <td class="line">0.00</td>
+        <td><button class="remove-btn" onclick="this.closest('tr').remove(); calc()">✖</button></td>
+    `;
+
+                tbody.appendChild(tr);
+            }
+
+            function calc() {
+                let subtotal = 0;
+
+                document.querySelectorAll("#items tbody tr").forEach(row => {
+                    const qty = Number(row.children[1].querySelector("input").value) || 0;
+                    const price = Number(row.children[2].querySelector("input").value) || 0;
+                    const line = qty * price;
+
+                    row.querySelector(".line").innerText = line.toFixed(2);
+                    subtotal += line;
+                });
+
+                const gstEnabled = document.getElementById("gst").checked;
+                const gstAmt = gstEnabled ? subtotal * 0.18 : 0;
+
+                document.getElementById("subtotal").innerText = subtotal.toFixed(2);
+                document.getElementById("gstAmount").innerText = gstAmt.toFixed(2);
+                document.getElementById("total").innerText = (subtotal + gstAmt).toFixed(2);
+                document.getElementById("gstRow").style.display = gstEnabled ? "block" : "none";
+            }
+
+            document.getElementById("gst").addEventListener("change", calc);
+            addRow();
+
+            /* ---------------- SUBMIT INVOICE ---------------- */
+
+            async function submitInvoice() {
+
+                const fromProfileId = document.getElementById("fromEntity").value;
+                if (!fromProfileId) {
+                    showModal("Please select From (Business Profile)");
+                    return;
+                }
+
+                const currencyValue = document.getElementById("currency").value;
+                if (!currencyValue) {
+                    showModal("Please select currency");
+                    return;
+                }
+
+                const [currencyCode, currencySymbol] = currencyValue.split("|");
+
+                const items = [];
+                document.querySelectorAll("#items tbody tr").forEach(row => {
+                    const name = row.children[0].querySelector("input").value.trim();
+                    const qty = Number(row.children[1].querySelector("input").value);
+                    const price = Number(row.children[2].querySelector("input").value);
+
+                    if (name && qty > 0 && price >= 0) {
+                        items.push({
+                            service_name: name,
+                            quantity: qty,
+                            unit_price: price
+                        });
+                    }
+                });
+
+                if (!items.length) {
+                    showModal("Please add at least one service");
+                    return;
+                }
+
+                const payload = {
+                    fromProfileId: Number(fromProfileId),
+                    clientName: document.getElementById("clientName").value.trim(),
+                    clientAddress: document.getElementById("clientAddress").value.trim(),
+                    currencyCode,
+                    currencySymbol,
+                    gstEnabled: document.getElementById("gst").checked,
+                    items
+                };
+
+                const res = await fetch("/api/invoices", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    window.location.href = `/admin/invoice-preview.html?id=${data.invoiceId}`;
+                } else {
+                    showModal(data.message || "Failed to create invoice");
+                }
+            }
+
+            /* ---------------- LOAD CURRENCIES ---------------- */
+
+            async function loadInvoiceCurrencies() {
+                const res = await fetch("/api/currencies", { credentials: "include" });
+                const data = await res.json();
+
+                const select = document.getElementById("currency");
+                select.innerHTML = '<option value="">Select currency</option>';
+
+                data.currencies.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = `${c.code}|${c.symbol}`;
+                    opt.innerText = `${c.code} — ${c.name}`;
+                    if (c.code === "INR") opt.selected = true;
+                    select.appendChild(opt);
+                });
+            }
+
+            /* ---------------- LOAD BUSINESS PROFILES ---------------- */
+
+            async function loadFromProfiles() {
+                const res = await fetch("/api/business-profiles", { credentials: "include" });
+                const data = await res.json();
+
+                const select = document.getElementById("fromEntity");
+                select.innerHTML = '<option value="">Select From</option>';
+
+                data.profiles.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;          // ✅ ID ONLY
+                    opt.innerText = p.name;
+                    select.appendChild(opt);
+                });
+            }
+
+            loadInvoiceCurrencies();
+            loadFromProfiles();
+        </script>
+
+        <div class="modal-overlay" id="modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <span class="modal-close" onclick="closeModal()">✕</span>
+                </div>
+                <p id="modalMessage"></p>
+                <br>
+                <button class="btn" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

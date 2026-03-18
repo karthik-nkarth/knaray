@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/admin/css/admin-ui.css">
+    <title>Invoice Preview</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: auto;
+            padding: 30px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: right;
+        }
+
+        .section {
+            margin-top: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        .total {
+            text-align: right;
+            font-size: 18px;
+        }
+
+        .signature-box {
+            margin-top: 40px;
+            text-align: right;
+        }
+
+        .signature-box img {
+            max-width: 180px;
+            height: auto;
+        }
+
+        .signature-date {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .invoice-container {
+            position: relative;
+        }
+
+        .home-btn {
+            position: absolute;
+            top: 10px;
+            /* Added a small offset so it's not touching the very edge */
+            right: 10px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            /* Added background color so the white icon is visible */
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-size: 17px;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+
+        .home-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.8);
+            /* Darkens slightly on hover */
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="invoice-container">
+        <button class="home-btn" onclick="goHome()" title="Back to Dashboard">🏠︎</button>
+
+        <h1 style="text-align: center;">INVOICE</h1>
+        <button class="no-print" onclick="downloadPDF()">Download PDF</button>
+
+        <div class="section">
+            <h3>From</h3>
+            <p id="fromDetails"></p>
+        </div>
+
+        <div id="invoiceInfo" class="section"></div>
+
+        <div class="section">
+            <h3>Bill To</h3>
+            <p id="client"></p>
+        </div>
+
+        <div class="section">
+            <h3>Services</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody id="items"></tbody>
+            </table>
+        </div>
+
+        <div class="section total">
+            <p>Subtotal: <span id="subtotal"></span></p>
+            <p id="gstRow" style="display:none;">GST (18%): <span id="gst"></span></p>
+            <p><strong>Total: <span id="total"></span></strong></p>
+        </div>
+
+        <div class="section">
+            <h3>Payment Details</h3>
+            <p>
+                <strong>Bank Transfer</strong><br>
+                Holder Name: Karthik Narayanan<br>
+                Account Number: 059801557851<br>
+                IFSC: ICIC0000598<br>
+                Bank: ICICI
+            </p>
+
+            <p>
+                <strong>UPI</strong><br>
+                8686928205@ybl
+            </p>
+        </div>
+
+        <div class="signature-box">
+            <img src="/admin/assets/signature.png" alt="Signature">
+            <div class="signature-date" id="signedDate"></div>
+        </div>
+
+        <!-- Puppeteer hook -->
+        <div id="invoice-loaded" style="display:none;"></div>
+
+        <script>
+
+            function showModal(title, message) {
+                document.getElementById("modalTitle").innerText = title;
+                document.getElementById("modalMessage").innerText = message;
+                document.getElementById("modal").style.display = "flex";
+            }
+            function goHome() {
+                window.location.href = "/admin/dashboard.html";
+            }
+
+            function closeModal() {
+                document.getElementById("modal").style.display = "none";
+            }
+            let invoiceId = null;
+
+            function downloadPDF() {
+                if (!invoiceId) {
+                    showModal("Invoice ID not loaded yet");
+                    return;
+                }
+                window.open(`/api/invoices/${invoiceId}/pdf`, "_blank");
+            }
+
+            document.addEventListener("DOMContentLoaded", async () => {
+
+                const params = new URLSearchParams(window.location.search);
+                invoiceId = params.get("id");
+
+                if (!invoiceId) {
+                    showModal("Invalid invoice ID");
+                    return;
+                }
+
+                const res = await fetch(`/api/invoices/${invoiceId}`, {
+                    credentials: "include"
+                });
+
+                const data = await res.json();
+                const inv = data.invoice;
+
+                /* ---------- FROM (BUSINESS PROFILE) ---------- */
+                document.getElementById("fromDetails").innerHTML = `
+        <strong>${inv.from_name || "—"}</strong><br>
+        ${inv.from_address || ""}
+    `;
+
+                /* ---------- INVOICE META (IST) ---------- */
+                const invoiceDateIST = new Date(inv.invoice_date).toLocaleString("en-IN", {
+                    timeZone: "Asia/Kolkata",
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false
+                });
+
+                document.getElementById("invoiceInfo").innerHTML = `
+        <p><strong>Invoice No:</strong> ${inv.invoice_number}</p>
+        <p><strong>Date:</strong> ${invoiceDateIST}</p>
+        <p><strong>Currency:</strong> ${inv.currency_code}</p>
+    `;
+
+                /* ---------- CLIENT ---------- */
+                document.getElementById("client").innerText =
+                    inv.client_name + "\n" + (inv.client_address || "");
+
+                /* ---------- ITEMS ---------- */
+                const tbody = document.getElementById("items");
+                tbody.innerHTML = "";
+
+                data.items.forEach(item => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+            <td>${item.service_name}</td>
+            <td>${item.quantity}</td>
+            <td>${inv.currency_symbol} ${item.unit_price}</td>
+            <td>${inv.currency_symbol} ${item.line_total}</td>
+        `;
+                    tbody.appendChild(tr);
+                });
+
+                /* ---------- TOTALS ---------- */
+                document.getElementById("subtotal").innerText =
+                    inv.currency_symbol + " " + inv.subtotal;
+
+                if (inv.gst_enabled) {
+                    document.getElementById("gstRow").style.display = "block";
+                    document.getElementById("gst").innerText =
+                        inv.currency_symbol + " " + inv.gst_amount;
+                }
+
+                document.getElementById("total").innerText =
+                    inv.currency_symbol + " " + inv.total;
+
+                /* ---------- SIGN DATE (IST) ---------- */
+                const signedDate = new Date().toLocaleDateString("en-IN", {
+                    timeZone: "Asia/Kolkata",
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric"
+                });
+
+                document.getElementById("signedDate").innerText =
+                    "Signed on: " + signedDate;
+
+                /* ---------- PUPPETEER READY FLAG ---------- */
+                document.getElementById("invoice-loaded").innerText = "ready";
+            });
+        </script>
+
+        <div class="modal-overlay" id="modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="modalTitle"></h3>
+                    <span class="modal-close" onclick="closeModal()">✕</span>
+                </div>
+                <p id="modalMessage"></p>
+                <br>
+                <button class="btn" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

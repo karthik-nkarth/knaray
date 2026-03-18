@@ -1,0 +1,20 @@
+{
+  "name": "knray-admin",
+  "version": "1.0.0",
+  "description": "Admin invoice system for Knray",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.10.1",
+    "puppeteer": "^24.34.0"
+  }
+}

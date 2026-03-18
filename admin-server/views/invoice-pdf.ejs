@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #333;
+            position: relative;
+            z-index: 1;
+
+
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .section {
+            margin-top: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        .total {
+            text-align: right;
+            font-size: 16px;
+        }
+
+        .signature-box {
+            margin-top: 60px;
+            text-align: right;
+        }
+
+        .signature-box img {
+            max-width: 180px;
+        }
+
+        .signature-date {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 420px;
+            transform: translate(-50%, -50%);
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- WATERMARK (PROFILE-DRIVEN, PDF-SAFE) -->
+    <% if (profile && profile.watermarkBase64) { %>
+        <img class="watermark" src="<%= profile.watermarkBase64 %>" alt="Watermark" />
+        <% } %>
+
+            <!-- HEADER -->
+            <div class="header">
+                <div>
+                    <h2>INVOICE</h2>
+                </div>
+                <div class="header-right">
+                    <p><strong>Invoice No:</strong>
+                        <%= invoice.invoice_number %>
+                    </p>
+                    <p><strong>Date:</strong>
+                        <%= new Date(invoice.invoice_date).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" ,
+                            day: "2-digit" , month: "short" , year: "numeric" }) %>
+                    </p>
+                    <p><strong>Currency:</strong>
+                        <%= invoice.currency_code %>
+                    </p>
+                </div>
+            </div>
+
+            <!-- FROM -->
+            <div class="section">
+                <h3>From</h3>
+                <p>
+                    <strong>
+                        <%= profile.name %>
+                    </strong><br>
+                    <%= profile.address %>
+                </p>
+            </div>
+
+            <!-- BILL TO -->
+            <div class="section">
+                <h3>Bill To</h3>
+                <p>
+                    <strong>
+                        <%= invoice.client_name %>
+                    </strong><br>
+                    <%= invoice.client_address %>
+                </p>
+            </div>
+
+            <!-- SERVICES -->
+            <div class="section">
+                <h3>Services</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% items.forEach(item=> { %>
+                            <tr>
+                                <td>
+                                    <%= item.service_name %>
+                                </td>
+                                <td>
+                                    <%= item.quantity %>
+                                </td>
+                                <td>
+                                    <%= invoice.currency_symbol %>
+                                        <%= item.unit_price %>
+                                </td>
+                                <td>
+                                    <%= invoice.currency_symbol %>
+                                        <%= item.line_total %>
+                                </td>
+                            </tr>
+                            <% }) %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TOTALS -->
+            <div class="section total">
+                <p>Subtotal: <%= invoice.currency_symbol %>
+                        <%= invoice.subtotal %>
+                </p>
+
+                <% if (invoice.gst_enabled) { %>
+                    <p>GST (18%): <%= invoice.currency_symbol %>
+                            <%= invoice.gst_amount %>
+                    </p>
+                    <% } %>
+
+                        <p><strong>Total: <%= invoice.currency_symbol %>
+                                    <%= invoice.total %></strong></p>
+            </div>
+
+            <!-- PAYMENT DETAILS -->
+            <div class="section">
+                <h3>Payment Details</h3>
+                <p>
+                    <strong>Bank Transfer</strong><br>
+                    Holder Name: Karthik Narayanan<br>
+                    Account Number: 059801557851<br>
+                    IFSC: ICIC0000598<br>
+                    Bank: ICICI
+                </p>
+
+                <p>
+                    <strong>UPI</strong><br>
+                    8686928205@ybl
+                </p>
+            </div>
+
+            <!-- SIGNATURE -->
+            <div class="signature-box">
+                <img src="http://localhost:3000/admin/assets/signature.png">
+                <div class="signature-date">
+                    Signed on:
+                    <%= new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" , day: "2-digit" ,
+                        month: "short" , year: "numeric" }) %>
+                </div>
+            </div>
+
+            <script>
+                window.imagesReady = Promise.all(
+                    Array.from(document.images)
+                        .filter(img => !img.complete)
+                        .map(img => new Promise(resolve => {
+                            img.onload = img.onerror = resolve;
+                        }))
+                );
+            </script>
+
+</body>
+
+</html>
