@@ -2,6 +2,7 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "nodemailer": "^8.0.2"
+    "nodemailer": "^8.0.2",
+    "dotenv": "^16.4.5"
   }
 }
