@@ -1411,7 +1411,7 @@ document.addEventListener("DOMContentLoaded", () => {
         button.disabled = true;
         button.textContent = "Sending...";
 
-        fetch("http://localhost:3000/api/send-mail", {
+        fetch("https://knaray-backend.onrender.com", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
