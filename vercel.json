@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "https://knaray-backend.onrender.com/admin"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://knaray-backend.onrender.com/admin/:path*"
+    }
+  ]
+}
